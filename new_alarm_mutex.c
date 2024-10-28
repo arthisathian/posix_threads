@@ -98,7 +98,9 @@ void *alarm_thread (void *arg)
          * structure.
          */
         if (alarm != NULL) {
-            printf ("(%d) %s\n", alarm->seconds, alarm->message);
+            if (alarm -> time <= now){
+                printf("Alarm(%d): Alarm Expired at %ld: Alarm Removed From Alarm List\n", alarm -> seconds, time(NULL));
+            }
             free (alarm);
         }
     }
@@ -149,6 +151,7 @@ int main (int argc, char *argv[]) {
                 
                 alarm -> seconds = alarm_duration;
                 strncpy(alarm -> message, message, sizeof(alarm -> message) - 1);
+                alarm -> message[127] = '\0';   // Ensures null termination
                 alarm -> time = time(NULL) + alarm -> seconds;
 
                 /* Locks mutex for thread safe insertion
@@ -188,7 +191,7 @@ int main (int argc, char *argv[]) {
                 status = pthread_mutex_unlock(&alarm_mutex);
                 if (status != 0) {err_abort(status, "Unlock mutex");}
 
-                printf("Alarm(%d) set at %ld with message: %s\n", alarm_id, time(NULL), alarm -> message);
+                printf("Alarm(%d) Inserted by Main Thread (%lu) Into Alarm List at %ld: %s %d %s\n", pthread_self(), time(NULL), type, alarm_duration, time(NULL), alarm -> message);
 
             } else if (strcmp(command, "Change_Alarm") == 0) {
                 /* Change_Alarm command handling
@@ -204,7 +207,7 @@ int main (int argc, char *argv[]) {
                     if (alarm -> seconds == alarm_id){
                         alarm -> seconds = alarm_duration;
                         strncpy(alarm -> message, message, sizeof(alarm -> message) - 1);
-                        printf("Alarm (%d) changed to %d seconds with message: %s\n", alarm_id, alarm_duration, message);
+                        printf("Alarm(%d) Changed at %ld: %s %d %s\n", alarm_id, time(NULL), type, alarm_duration, message);
                         break;
                     }
                     alarm = alarm -> link;
@@ -231,7 +234,7 @@ int main (int argc, char *argv[]) {
                     if (alarm -> seconds == alarm_id){
                         *last = alarm -> link;
                         free(alarm);
-                        printf("Alarm(%d) cancelled.\n", alarm_id);
+                        printf("Alarm(%d) Cancelled at %ld\n", alarm_id, time(NULL));
                         break;
                     }
                     last = &alarm -> link;
@@ -250,12 +253,13 @@ int main (int argc, char *argv[]) {
                 */
                 status = pthread_mutex_lock(&alarm_mutex);
                 if(status != 0) {err_abort(status, "Lock mutex");}
-                printf("Viewing all alarms:\n");
+                printf("View Alarms at %ld:\n", time(NULL));
                 alarm = alarm_list;
                 int i = 1;
 
                 while(alarm != NULL){
-                    printf("Alarm %d: %d seconds - %s\n", i++, alarm -> seconds, alarm -> message);
+                    printf("%d. Display Thread %lu Assigned:\n", i, pthread_self());
+                    printf("    %da. Alarm(%d): %s %d %s\n", i, alarm -> seconds, type, alarm_duration, alarm -> message);
                     alarm = alarm -> link;
                 }
                 status = pthread_mutex_unlock(&alarm_mutex);
