@@ -175,6 +175,7 @@ void assign_alarm_to_display_thread(alarm_t *new_alarm) {
 }
 
 void cancel_alarm_in_display_thread (alarm_t *target_alarm){
+    int status;
 
     // Lock the mutex to safely modify shared data structures
     status = pthread_mutex_lock(&display_mutex);
@@ -188,7 +189,7 @@ void cancel_alarm_in_display_thread (alarm_t *target_alarm){
         for(int k = 0; k < temp_display->assigned_alarm_count; k++){
 
             //Check for match alarm
-            if(target_alarm->alarm_ID == temp_display->assigned_alarm[k]){
+            if(target_alarm->alarm_ID == temp_display->assigned_alarm[k]->alarm_ID){
                 //Remove this alarm and print the message
                 temp_display->assigned_alarm[k] = NULL;
                 temp_display->assigned_alarm_count--;
