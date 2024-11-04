@@ -141,7 +141,7 @@ int main (int argc, char *argv[]) {
          * Ensures the proper formatting and validity of commands.
          */
         if (sscanf (line, "%15s(%d): %2s %d %127[^\n]", command, &alarm_id, type, &alarm_duration, message) == 5) {
-            if (strcmp(command, "Start Alarm") == 0) {
+            if (strcmp(command, "Start_Alarm") == 0) {
                 /* Start_Alarm command handling
                 * Allocates memory for new alarm, sets time & message,
                 * and inserts it into the sorted list
