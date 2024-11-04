@@ -19,9 +19,8 @@
 #include <unistd.h>     //Added libraries (Hien L)
 
 /*
- * The "alarm" structure now contains the time_t (time since the
- * Epoch, in seconds) for each alarm, so that they can be
- * sorted. Storing the requested number of seconds would not be
+ * The "alarm" structure now contains the alarm ID for each alarm, 
+ * so that they can be sorted. Storing the requested number of seconds would not be
  * enough, since the "alarm thread" cannot tell how long it has
  * been on the list.
  */
@@ -35,6 +34,10 @@ typedef struct alarm_tag {
     int                 is_assigned;
 } alarm_t;
 
+/*
+ * The "display" structure now contains the threadid, type
+ * of the display and keep track of its alarms
+ */
 typedef struct display_tag {
     pthread_t   threadid;
     char        type[3];
@@ -43,12 +46,12 @@ typedef struct display_tag {
 } display_t;
 
 
-pthread_mutex_t alarm_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t display_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t alarm_mutex = PTHREAD_MUTEX_INITIALIZER;    //Mutex for alarm
+pthread_mutex_t display_mutex = PTHREAD_MUTEX_INITIALIZER;  //Mutex for display
 alarm_t *alarm_list = NULL;
 
-display_t *display_threads[10];
-int display_thread_count = 0;
+display_t *display_threads[10];                             //Limit display threads to 10 to prevent overflow
+int display_thread_count = 0;                               //Number of thread currently in the display array
 
 
 /*
@@ -59,6 +62,7 @@ void *display_thread (void *arg) {
    int status;
 
    while(1){
+        // Lock the mutex to safely modify shared data structures
         status = pthread_mutex_lock (&display_mutex);
         if (status != 0)
             err_abort (status, "Lock mutex");
@@ -66,22 +70,28 @@ void *display_thread (void *arg) {
         
         int active_alarm = 0;
 
+        // Check each alarm in the display thread
         for(int i = 0; i < 2; i++){
             alarm_t *alarm = display_thread->assigned_alarm[i];
             
-            if(alarm != NULL){
+            if(alarm != NULL){     //Alarm exists to analyze
                 time_t now = time(NULL);
+
+                //Expired alarm
                 if(now >= alarm->time){
                     printf("Alarm(%d) Expired; Display Thread (%lu) Stopped Printing Alarm Message at %ld: %s %d %s\n", alarm->alarm_ID, display_thread->threadid, now, alarm->type, alarm->seconds, alarm->message);
                     display_thread->assigned_alarm[i] = NULL;   //Clear the expired alarm
                     display_thread->assigned_alarm_count--;
+                
+                //Alarm does not expire and print the periodic message
                 }else {
                     printf("Alarm(%d) Message PERIODICALLY PRINTED BY Display Thread (%lu) at %ld: %s %d %s\n", alarm->alarm_ID, display_thread->threadid, now, alarm->type, alarm->seconds, alarm->message);
                     active_alarm++;
                 }
             }
         }
-
+        
+        //No alarm in the display thread, terminate the thread
         if(active_alarm == 0) {
             printf("Display Thread Terminated (%lu) at %ld\n", display_thread->threadid, time(NULL));
             status = pthread_mutex_unlock (&display_mutex);
@@ -91,10 +101,14 @@ void *display_thread (void *arg) {
             display_thread_count--;
             pthread_exit(NULL);
         }
+
+        // Unlock the mutex after modifying shared data structures
         status = pthread_mutex_unlock (&display_mutex);
         if (status != 0)
              err_abort (status, "Unlock mutex");
-        sleep(5);      //Set 5 later
+        
+        //Sleep briefly before re-checking the display thread
+        sleep(5);
    }
 }
 
@@ -104,13 +118,14 @@ void *display_thread (void *arg) {
 display_t *create_display_thread(char *type) {
     if(display_thread_count >= 10) return NULL;   //Limits the number of threads
 
+    // Create new display
     display_t *new_thread = (display_t*) malloc(sizeof(display_t));
     if (new_thread == NULL) {
         fprintf(stderr, "Error: Could not allocate memory for new display thread.\n");
         return NULL;
     }
 
-    //Create thread base on alarm type
+    //Set the thread base on alarm type
     strcpy(new_thread->type, type);
     new_thread->assigned_alarm_count = 0;
 
@@ -130,6 +145,8 @@ display_t *create_display_thread(char *type) {
             display_threads[i] = new_thread;
         }
     }
+    
+    //Return the created thread
     return new_thread;
 }
 
@@ -137,6 +154,8 @@ display_t *create_display_thread(char *type) {
 * Assign Alarm to the Right Thread
 */
 void assign_alarm_to_display_thread(alarm_t *new_alarm) {
+
+    //Initialize variables and pointers
     int thread_found = 0;
     int type_found = 0;
     display_t *target_thread = NULL;
@@ -186,6 +205,7 @@ void assign_alarm_to_display_thread(alarm_t *new_alarm) {
 }
 
 void cancel_alarm_in_display_thread (alarm_t *target_alarm){
+    //Initialize variable
     int status;
 
     // Lock the mutex to safely modify shared data structures
@@ -233,12 +253,12 @@ void *alarm_thread (void *arg)
      * be disintegrated when the process exits.
      */
     while (1) { 
+        // Lock the mutex to safely modify shared data structures
         status = pthread_mutex_lock (&alarm_mutex);
         if (status != 0)
             err_abort (status, "Lock mutex");
         
-        //alarm = alarm_list;
-        
+        //Initialize values before traversing
         prev = NULL;
         current = alarm_list;
         now = time(NULL);
@@ -259,6 +279,7 @@ void *alarm_thread (void *arg)
                     prev->link = current->link;
                 }
                 
+                //Store expired alarm and free them later
                 if(expired_count < 50){
                     expired_alarms[expired_count++] = current;
                 }
@@ -323,11 +344,13 @@ void *alarm_thread (void *arg)
 }
 
 int main (int argc, char *argv[]) {
+    //Intialize variables and counters
     int status;
     char line[256];     // Increased the buffer for command parsing (Arthi S)
     alarm_t *alarm, **last, *next;
     pthread_t thread;
 
+    //Create new thread
     status = pthread_create (&thread, NULL, alarm_thread, NULL);
     if (status != 0) {err_abort (status, "Create alarm thread");}
 
@@ -474,15 +497,8 @@ int main (int argc, char *argv[]) {
                 status = pthread_mutex_lock(&alarm_mutex);
                 if(status != 0) {err_abort(status, "Lock mutex");}
                 printf("View Alarms at %ld:\n", time(NULL));
-                // alarm = alarm_list;
-                // int i = 1;
 
-                // while(alarm != NULL){
-                //     printf("%d. Display Thread %lu Assigned:\n", i, pthread_self());
-                //     printf("    %da. Alarm(%d): %s %d %s\n", i, alarm -> seconds, type, alarm_duration, alarm -> message);
-                //     alarm = alarm -> link;
-                // }
-
+                //Displaying the alarm
                 for(int i = 0; i < display_thread_count; i++){
                     display_t *temp_display = display_threads[i];
                     printf("%d. Display Thread %lu Assigned:\n", i, temp_display->threadid);
@@ -493,6 +509,7 @@ int main (int argc, char *argv[]) {
                     }
                 }
 
+                // Unlock the mutex after modifying shared data structures 
                 status = pthread_mutex_unlock(&alarm_mutex);
                 if (status != 0) {err_abort(status, "Unlock mutex");}
             } else{
@@ -505,10 +522,12 @@ int main (int argc, char *argv[]) {
                     next->time - time (NULL), next->message);
             printf ("]\n");
 #endif
+            // Unlock the mutex after modifying shared data structures
             status = pthread_mutex_unlock (&alarm_mutex);
             if (status != 0)
                 err_abort (status, "Unlock mutex");
         }
+        //Sleep briefly before re-prompting
         sleep(2);
     }
 }
