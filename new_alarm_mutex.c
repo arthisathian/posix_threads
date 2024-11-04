@@ -355,7 +355,8 @@ int main (int argc, char *argv[]) {
          * Extracts the command, alarm ID, type, time, and message by parsing the command.
          * Ensures the proper formatting and validity of commands.
          */
-        if (sscanf (line, "%[^(](%d): %s %d %128[^\n]", command, &alarm_id, type, &alarm_duration, message) > 0) {
+      
+        if (sscanf (line, "%15s(%d): %2s %d %127[^\n]", command, &alarm_id, type, &alarm_duration, message) == 5) {
             if (strcmp(command, "Start_Alarm") == 0) {
                 /* Start_Alarm command handling
                 * Allocates memory for new alarm, sets time & message,
