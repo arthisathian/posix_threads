@@ -66,7 +66,7 @@ void *display_thread (void *arg) {
         
         int active_alarm = 0;
 
-        for(int i = 0; i < display_thread->assigned_alarm_count; i++){
+        for(int i = 0; i < 2; i++){
             alarm_t *alarm = display_thread->assigned_alarm[i];
             
             if(alarm != NULL){
@@ -161,7 +161,7 @@ void assign_alarm_to_display_thread(alarm_t *new_alarm) {
     }
 
     //Two cases for creating new thread
-    if(!thread_found){
+    if(!thread_found && !type_found){
         target_thread = create_display_thread(temp_alarm->type);
         printf("First New Display Thread (%lu) Created at %ld: %s %d %s\n", target_thread->threadid, time(NULL), temp_alarm->type, temp_alarm->seconds, temp_alarm->message);
     }else if(!thread_found && type_found){
@@ -273,11 +273,15 @@ void *alarm_thread (void *arg)
                 prev = current;
                 current = current->link;
             }
+            //Exit the thread after finish traversing the list
+            if (current == NULL) {
+                pthread_exit(NULL);
+            }
         }
         // Handle reassignment if alarm type change
         for(int i = 0; i < display_thread_count; i++){
             display_t *display = display_threads[i];
-            for(int j = 0; j < display->assigned_alarm_count; j++){
+            for(int j = 0; j < 2; j++){
                 alarm_t *assign_alarm = display->assigned_alarm[j];
 
                 if(assign_alarm && strcmp(assign_alarm->type, display->type) != 0){
