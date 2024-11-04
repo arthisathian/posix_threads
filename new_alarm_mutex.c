@@ -67,14 +67,13 @@ void *display_thread (void *arg) {
         int active_alarm = 0;
 
         for(int i = 0; i < display_thread->assigned_alarm_count; i++){
-
-            if(display_thread->assigned_alarm[i] != NULL){
-                alarm_t *alarm = display_thread->assigned_alarm[i];
+            alarm_t *alarm = display_thread->assigned_alarm[i];
+            
+            if(alarm != NULL){
                 time_t now = time(NULL);
                 if(now >= alarm->time){
                     printf("Alarm(%d) Expired; Display Thread (%lu) Stopped Printing Alarm Message at %ld: %s %d %s\n", alarm->alarm_ID, display_thread->threadid, now, alarm->type, alarm->seconds, alarm->message);
                     display_thread->assigned_alarm[i] = NULL;   //Clear the expired alarm
-                    display_thread->assigned_alarm_count--;
                 }else {
                     printf("Alarm(%d) Message PERIODICALLY PRINTED BY Display Thread (%lu) at %ld: %s %d %s\n", alarm->alarm_ID, display_thread->threadid, now, alarm->type, alarm->seconds, alarm->message);
                     active_alarm++;
