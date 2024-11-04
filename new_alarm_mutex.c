@@ -74,6 +74,7 @@ void *display_thread (void *arg) {
                 if(now >= alarm->time){
                     printf("Alarm(%d) Expired; Display Thread (%lu) Stopped Printing Alarm Message at %ld: %s %d %s\n", alarm->alarm_ID, display_thread->threadid, now, alarm->type, alarm->seconds, alarm->message);
                     display_thread->assigned_alarm[i] = NULL;   //Clear the expired alarm
+                    display_thread->assigned_alarm_count--;
                 }else {
                     printf("Alarm(%d) Message PERIODICALLY PRINTED BY Display Thread (%lu) at %ld: %s %d %s\n", alarm->alarm_ID, display_thread->threadid, now, alarm->type, alarm->seconds, alarm->message);
                     active_alarm++;
@@ -355,8 +356,7 @@ int main (int argc, char *argv[]) {
          * Extracts the command, alarm ID, type, time, and message by parsing the command.
          * Ensures the proper formatting and validity of commands.
          */
-      
-        if (sscanf (line, "%15s(%d): %2s %d %127[^\n]", command, &alarm_id, type, &alarm_duration, message) == 5) {
+        if (sscanf (line, "%[^(](%d): %s %d %128[^\n]", command, &alarm_id, type, &alarm_duration, message) > 0) {
             if (strcmp(command, "Start_Alarm") == 0) {
                 /* Start_Alarm command handling
                 * Allocates memory for new alarm, sets time & message,
@@ -381,7 +381,7 @@ int main (int argc, char *argv[]) {
                 if (status != 0) {err_abort(status, "Lock mutex");}
                 
                 /*
-                * Insert the new alarm into the list of alarms, sorted by alarm ID.
+                * Insert the new alarm into the list of alarms, sorted by expiration time.
                 */
                 last = &alarm_list;
                 next = *last;
@@ -489,7 +489,7 @@ int main (int argc, char *argv[]) {
 
                     for(int k = 0; k < temp_display->assigned_alarm_count; k++){
                         alarm_t *temp_alarm = temp_display->assigned_alarm[k];
-                        printf("\t%d%c. Alarm(%d): %s %d %s\n", i, k + 97, alarm_id, type, alarm_duration, message);
+                        printf("\t%d%c. Alarm(%d): %s %d %s\n", i + 1, k + 97, alarm_id, type, alarm_duration, message);
                     }
                 }
 
