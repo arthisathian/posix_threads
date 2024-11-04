@@ -378,8 +378,9 @@ int main (int argc, char *argv[]) {
                 */
                 status = pthread_mutex_lock(&alarm_mutex);
                 if (status != 0) {err_abort(status, "Lock mutex");}
+                
                 /*
-                * Insert the new alarm into the list of alarms, sorted by expiration time.
+                * Insert the new alarm into the list of alarms, sorted by alarm ID.
                 */
                 last = &alarm_list;
                 next = *last;
@@ -507,5 +508,6 @@ int main (int argc, char *argv[]) {
             if (status != 0)
                 err_abort (status, "Unlock mutex");
         }
+        sleep(2);
     }
 }
