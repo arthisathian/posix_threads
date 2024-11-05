@@ -50,7 +50,7 @@ pthread_mutex_t alarm_mutex = PTHREAD_MUTEX_INITIALIZER;    //Mutex for alarm
 pthread_mutex_t display_mutex = PTHREAD_MUTEX_INITIALIZER;  //Mutex for display
 alarm_t *alarm_list = NULL;
 
-display_t *display_threads[10];                             //Limit display threads to 10 to prevent overflow
+display_t *display_threads[10];                             //Limit display threads to 10 to prevent overload
 int display_thread_count = 0;                               //Number of thread currently in the display array
 
 
@@ -266,7 +266,7 @@ void *alarm_thread (void *arg)
 
         //Traverse through the alarm list
         while(current != NULL){
-
+            
             //Find the expired alarm
             if(current->time <= now){
                 //Expired alarm - print expiration message and remove the list
@@ -355,6 +355,7 @@ int main (int argc, char *argv[]) {
     if (status != 0) {err_abort (status, "Create alarm thread");}
 
     while (1) {
+
         printf ("alarm> ");
         if (fgets (line, sizeof (line), stdin) == NULL) exit (0);
         if (strlen (line) <= 1) continue;
@@ -489,7 +490,7 @@ int main (int argc, char *argv[]) {
                 }
                 status = pthread_mutex_unlock(&alarm_mutex);
                 if (status != 0) {err_abort(status, "Unlock mutex");}
-            } else if (strcmp(line, "View_Alarms") == 0) {
+            } else if (strcmp(line, "View_Alarms\n") == 0) {
                 /* View_Alarm command handling
                 * Locks mutex, iterates through alarm_list to display all active alarms
                 * (ensures thread-safe access), then unlocks mutex
@@ -498,17 +499,23 @@ int main (int argc, char *argv[]) {
                 if(status != 0) {err_abort(status, "Lock mutex");}
                 printf("View Alarms at %ld:\n", time(NULL));
 
-                //Displaying the alarm
-                for(int i = 0; i < display_thread_count; i++){
-                    display_t *temp_display = display_threads[i];
-                    printf("%d. Display Thread %lu Assigned:\n", i, temp_display->threadid);
+                //If alarm list is empty
+                if (alarm_list == NULL) {
+                    printf("Alarm list is empty.\n");
 
-                    for(int k = 0; k < temp_display->assigned_alarm_count; k++){
-                        alarm_t *temp_alarm = temp_display->assigned_alarm[k];
-                        printf("\t%d%c. Alarm(%d): %s %d %s\n", i + 1, k + 97, alarm_id, type, alarm_duration, message);
+                //Print if it is not empty
+                } else {
+                    //Displaying the alarm
+                    for(int i = 0; i < display_thread_count; i++){
+                        display_t *temp_display = display_threads[i];
+                        printf("%d. Display Thread %lu Assigned:\n", i, temp_display->threadid);
+
+                        for(int k = 0; k < temp_display->assigned_alarm_count; k++){
+                            alarm_t *temp_alarm = temp_display->assigned_alarm[k];
+                            printf("\t%d%c. Alarm(%d): %s %d %s\n", i + 1, k + 97, alarm_id, type, alarm_duration, message);
+                        }
                     }
                 }
-
                 // Unlock the mutex after modifying shared data structures 
                 status = pthread_mutex_unlock(&alarm_mutex);
                 if (status != 0) {err_abort(status, "Unlock mutex");}
